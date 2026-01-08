@@ -12,4 +12,4 @@ Source: https://store-usa.arduino.cc/products/arduino-uno-rev3
 3. Connect both power rails in the breadboard:
     -  Connect another pair of jumper wires immediately below the first into positive and negative rails
     -  Connect the pair to the other side of the breadboard, match posiitve to positive and negative to negative.
-<img width="1512" height="2016" alt="image2" src="https://github.com/user-attachments/assets/7cc3f8c9-4fa6-477a-9f51-57bf6687d360" />
+<img width="378" height="504" alt="image2" src="https://github.com/user-attachments/assets/7cc3f8c9-4fa6-477a-9f51-57bf6687d360" />
