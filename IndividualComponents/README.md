@@ -1,4 +1,4 @@
-#Step 1 Integrating Breadboard and Arduino
+# Step 1 Integrating Breadboard and Arduino
 1. Connect a jumper wire to 5V pin and GND pin in Arduino from the power headers.
     - Make sure to use the dedicated Power OUT headers (they are next to each other, between 3.3V and GND pins)
 <img width="2809" height="2571" alt="image" src="https://github.com/user-attachments/assets/4e97203e-dff4-4951-adbf-a85eb9196702" />
