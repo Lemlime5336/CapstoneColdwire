@@ -22,8 +22,9 @@ These steps work as of 15/01/2025.
   - Confirm password
   - Set permission to "Publish and Subscribe"
   - Make sure to save the credentials 
-6. Click on "Web Client" and enter the previously saved username and password.
+6. Click on "Web Client" and enter the previously saved username and password. (this is to verify that HiveMQ is recieving sensor data)
   - Click on "Connect"
+  - Click on "Subscribe to all messages"
 7. All necessary information for the arduino code can be found in the "Overview" tab, including:
   - mqtt_server  (paste the url as is, within "")
   - mqtt_port
@@ -31,7 +32,7 @@ These steps work as of 15/01/2025.
   - mqtt_pass (the password set in step 5)
 
 
-#4. MongoDB Setup
+# 4. MongoDB Setup
 1. Create an account
 2. Create a project (this should be the name of the database)
 3. Do not add members for the time being
