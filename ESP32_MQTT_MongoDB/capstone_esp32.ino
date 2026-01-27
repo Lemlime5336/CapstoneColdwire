@@ -3,6 +3,7 @@
 #include <WiFiClientSecure.h>
 #include <PubSubClient.h>
 #include <DHT.h>
+#include <time.h>
 
 //STEP 2: PIN DEFINITIONS
 #define DHTPIN 4
@@ -43,6 +44,9 @@ void setup() {
   //STEP 6.3 MQTT TLS + BROKER SETUP
   secureClient.setInsecure(); // OK for now
   client.setServer(mqtt_server, mqtt_port);
+
+  //STEP 6.4: NTP TIME SETUP
+  configTime(28800, 0, "pool.ntp.org"); // GMT 0, no DST
 }
 
 //STEP 7: PERSISTENT MQTT CONNECTION
@@ -80,11 +84,23 @@ void loop() {
     Serial.println("MQ135 sensor abnormal");
   }
 
-  //STEP 8.4: JSON PAYLOAD
+  //STEP 8.4: GET CURRENT TIME
+  time_t now;
+  time(&now);
+
+  struct tm timeinfo;
+  localtime_r(&now, &timeinfo); // convert to local time
+
+  char timestamp[25]; // buffer for formatted time
+  strftime(timestamp, sizeof(timestamp), "%Y-%m-%d %H:%M:%S", &timeinfo); // format time
+  String timestampStr = String(timestamp);
+
+  //STEP 8.5: JSON PAYLOAD
   String payload = "{";
   payload += "\"temperature\":" + String(temp) + ",";
   payload += "\"humidity\":" + String(hum) + ",";
-  payload += "\"air_quality\":" + String(air);
+  payload += "\"air_quality\":" + String(air) + ",";
+  payload += "\"timestamp\":\"" + timestampStr + "\""; 
   payload += "}";
 
   //STEP 8.5: PUBLISHING TO MQTT
