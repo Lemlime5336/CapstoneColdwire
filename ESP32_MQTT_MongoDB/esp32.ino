@@ -28,7 +28,7 @@ const char* mqtt_pass = "xx";
 
 // ===== MQTT TOPICS =====
 const char* topic_sensors = "coldwire/M001/IM001/sensors";
-const char* topic_rfid = "coldwire/M001/IM001/delivery";
+const char* topic_bde = "coldwire/M001/IM001/batch_delivery_events";
 
 // ===== MQTT CLIENT =====
 WiFiClientSecure secureClient;
@@ -182,12 +182,21 @@ void processRFID(String rfid_tag) {
 
 // ===== PUBLISH RFID FUNCTION =====
 void publishRFID(String tag, String status) {
+  time_t nowTime;
+  time(&nowTime);
+  struct tm timeinfo;
+  localtime_r(&nowTime, &timeinfo);
+
+  char timestamp[25];
+  strftime(timestamp, sizeof(timestamp), "%Y-%m-%d %H:%M:%S", &timeinfo);
+
   String payload = "{";
   payload += "\"rfid_tag\":\"" + tag + "\",";
   payload += "\"batch_id\":\"BATCH123\",";
-  payload += "\"status\":\"" + status + "\"";
+  payload += "\"status\":\"" + status + "\",";
+  payload += "\"timestamp\":\"" + String(timestamp) + "\"";
   payload += "}";
 
-  client.publish(topic_rfid, payload.c_str());
+  client.publish(topic_bde, payload.c_str());
   Serial.println("RFID payload: " + payload);
 }
