@@ -1,55 +1,96 @@
 require('dotenv').config();
-
-// index.js
 const mqtt = require('mqtt');
 const { MongoClient } = require('mongodb');
 
-// Configuration
-const IMID = "IM001";      // IoT Module ID
-const MANU_ID = "M001";    // Manufacturer ID
+// ===== CONFIGURATION =====
+const IMID = "IM001";
+const MANU_ID = "M001";
 
-// HiveMQ Cloud
-const mqttClient = mqtt.connect(process.env.MQTT_HOST, {
+// Current delivery ID hardcoded
+const currentDeliveryId = "DEL-0260211-0001";
+
+// MQTT
+const topicEnvironment = 'coldwire/M001/IM001/sensors';
+const topicBDE = 'coldwire/M001/IM001/batch_delivery_events';
+
+const mqttClient = mqtt.connect(`mqtts://${process.env.MQTT_HOST}`, {
   username: process.env.MQTT_USER,
   password: process.env.MQTT_PASS
 });
 
-const topic = 'coldwire/M001/IM001/environment';
-
 // MongoDB
 const client = new MongoClient(process.env.MONGO_URL);
 
+// ===== HELPER to convert timestamps =====
+function parseArduinoTimestamp(ts) {
+  // Convert "YYYY-MM-DD HH:MM:SS" -> "YYYY-MM-DDTHH:MM:SSZ" (ISO8601 UTC)
+  return new Date(ts.replace(" ", "T") + "Z");
+}
+
+// ===== MAIN FUNCTION =====
 async function start() {
   try {
     await client.connect();
-    console.log('Connected to MongoDB');
+    console.log("Connected to MongoDB");
 
     const db = client.db('coldwire');
-    const collection = db.collection('environmental_logs');
+    const envCollection = db.collection('environmental_logs');
+    const bdeCollection = db.collection('batch_delivery_events');
 
     mqttClient.on('connect', () => {
-      console.log('Connected to HiveMQ Cloud');
-      mqttClient.subscribe(topic);
+      console.log("Connected to HiveMQ Cloud");
+      mqttClient.subscribe(topicEnvironment);
+      mqttClient.subscribe(topicBDE);
+      console.log("Subscribed to environmental logs topic");
+      console.log("Subscribed to batch delivery events topic");
     });
 
     mqttClient.on('message', async (topic, message) => {
-      const payload = JSON.parse(message.toString());
+      try {
+        console.log("MQTT message received:");
+        console.log("Topic:", topic);
+        console.log("Payload:", message.toString());
 
-      const log = {
-        imId: IMID,
-        manuId: MANU_ID,
-        temperature: payload.temperature,
-        humidity: payload.humidity,
-        gas: payload.air_quality,
-        timestamp: new Date()
-      };
+        const payload = JSON.parse(message.toString());
 
-      await collection.insertOne(log);
-      console.log('Saved log:', log);
+        // ----- ENVIRONMENTAL LOG -----
+        if (topic === topicEnvironment) {
+          const envLog = {
+            DeliveryID: currentDeliveryId,
+            EIMID: IMID,
+            ManuID: MANU_ID,
+            Temperature: payload.temperature,
+            Humidity: payload.humidity,
+            Gas: payload.air_quality,
+            Timestamp: parseArduinoTimestamp(payload.timestamp)
+          };
+
+          await envCollection.insertOne(envLog);
+          console.log("Saved environmental log:", envLog);
+        }
+
+        // ----- BATCH DELIVERY EVENT -----
+        if (topic === topicBDE) {
+          const bdeLog = {
+            DeliveryID: currentDeliveryId,
+            ManuID: MANU_ID,
+            RFIDTag: payload.rfid_tag,
+            BatchId: payload.batch_id,
+            Status: payload.status,
+            Timestamp: parseArduinoTimestamp(payload.timestamp)
+          };
+
+          await bdeCollection.insertOne(bdeLog);
+          console.log("Saved batch delivery event:", bdeLog);
+        }
+
+      } catch (err) {
+        console.error("Message processing error:", err);
+      }
     });
 
   } catch (err) {
-    console.error('Startup error:', err);
+    console.error("Startup error:", err);
   }
 }
 
