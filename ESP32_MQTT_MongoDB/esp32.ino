@@ -5,6 +5,7 @@
 #include <PubSubClient.h>
 #include <DHT.h>
 #include <time.h>
+#include <TinyGPS++.h>
 
 // ===== PIN DEFINITIONS =====
 #define SS_PIN 5
@@ -13,8 +14,22 @@
 #define DHTTYPE DHT22
 #define MQ135_PIN 34
 
+// ===== GPS PINS =====
+#define RXD2 16
+#define TXD2 17
+#define GPS_BAUD 9600
+
 MFRC522 rfid(SS_PIN, RST_PIN);
 DHT dht(DHTPIN, DHTTYPE);
+
+// GPS
+HardwareSerial gpsSerial(2);
+TinyGPSPlus gps;
+
+// Store latest GPS values
+float gps_lat = 0.0;
+float gps_lng = 0.0;
+bool gps_valid = false;
 
 // ===== WIFI =====
 const char* ssid = "xx"; //// ESP32 supports 2.4 GHz Wi-Fi only (not 5 GHz)
@@ -27,7 +42,7 @@ const char* mqtt_user = "xx";
 const char* mqtt_pass = "xx";
 
 // ===== MQTT TOPICS =====
-const char* topic_sensors = "coldwire/M001/IM001/sensors";
+const char* topic_sensors = "coldwire/M001/IM001/environmental_logs";
 const char* topic_bde = "coldwire/M001/IM001/batch_delivery_events";
 
 // ===== MQTT CLIENT =====
@@ -37,7 +52,7 @@ PubSubClient client(secureClient);
 // ===== BATCH TRACKING =====
 struct Batch {
   String rfid_tag;
-  String status;       
+  String status;
   unsigned long lastScan;
 };
 
@@ -57,6 +72,10 @@ void setup() {
   dht.begin();
   SPI.begin();
   rfid.PCD_Init();
+
+  // Start GPS serial
+  gpsSerial.begin(GPS_BAUD, SERIAL_8N1, RXD2, TXD2);
+  Serial.println("GPS started");
 
   // Connect to WiFi
   WiFi.begin(ssid, password);
@@ -94,6 +113,22 @@ void reconnect() {
 void loop() {
   if (!client.connected()) reconnect();
   client.loop();
+
+  // --- GPS handling ---
+  while (gpsSerial.available() > 0) {
+    gps.encode(gpsSerial.read());
+  }
+
+  if (gps.location.isUpdated()) {
+    gps_lat = gps.location.lat();
+    gps_lng = gps.location.lng();
+    gps_valid = true;
+
+    Serial.print("GPS: ");
+    Serial.print(gps_lat, 6);
+    Serial.print(", ");
+    Serial.println(gps_lng, 6);
+  }
 
   // --- RFID handling ---
   if (rfid.PICC_IsNewCardPresent() && rfid.PICC_ReadCardSerial()) {
@@ -143,6 +178,15 @@ void publishSensors(float temp, float hum, int air) {
   payload += "\"temperature\":" + String(temp) + ",";
   payload += "\"humidity\":" + String(hum) + ",";
   payload += "\"air_quality\":" + String(air) + ",";
+
+  if (gps_valid) {
+    payload += "\"latitude\":" + String(gps_lat, 6) + ",";
+    payload += "\"longitude\":" + String(gps_lng, 6) + ",";
+  } else {
+    payload += "\"latitude\":null,";
+    payload += "\"longitude\":null,";
+  }
+
   payload += "\"timestamp\":\"" + String(timestamp) + "\"";
   payload += "}";
 
